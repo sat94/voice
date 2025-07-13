@@ -1,0 +1,19 @@
+# API Voice MeetVoice - TTS Optimisé
+# Version 2.0.0 - Text-to-Speech uniquement
+
+# Framework API
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Synthèse vocale
+edge-tts==6.1.12
+
+# Utilitaires
+python-multipart==0.0.6
+
+# Supprimé pour optimisation TTS uniquement:
+# speechrecognition==3.10.0  # STT non nécessaire
+# pydub==0.25.1             # Conversion audio non nécessaire
+# aiofiles==23.2.0          # Async files non nécessaire
+# openai-whisper            # STT non nécessaire
+# pyaudio                   # Capture audio non nécessaire
