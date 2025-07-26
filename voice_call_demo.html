@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📞 Appel Vocal avec Sophie</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .phone-container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            color: #333;
+            text-align: center;
+        }
+        
+        .phone-header {
+            margin-bottom: 30px;
+        }
+        
+        .phone-header h1 {
+            margin: 0;
+            color: #667eea;
+        }
+        
+        .call-status {
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .status-disconnected { background: #f8d7da; color: #721c24; }
+        .status-connecting { background: #fff3cd; color: #856404; }
+        .status-connected { background: #d4edda; color: #155724; }
+        .status-listening { background: #cce5ff; color: #004085; }
+        .status-speaking { background: #e2e3e5; color: #383d41; }
+        .status-processing { background: #fff3cd; color: #856404; }
+        
+        .call-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .call-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .call-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .btn-call {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-hangup {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-mute {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-mute.muted {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-record {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-record.recording {
+            background: #dc3545;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .conversation-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .conversation-turn {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .user-message {
+            background: #007bff;
+            color: white;
+            margin-left: 20%;
+        }
+        
+        .ai-message {
+            background: #e9ecef;
+            color: #333;
+            margin-right: 20%;
+        }
+        
+        .audio-controls {
+            margin-top: 10px;
+        }
+        
+        .audio-controls audio {
+            width: 100%;
+            height: 30px;
+        }
+        
+        .stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 20px;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-container">
+        <div class="phone-header">
+            <h1>📞 Appel avec Sophie</h1>
+            <p>Votre coach de séduction vocale</p>
+        </div>
+        
+        <div id="callStatus" class="call-status status-disconnected">
+            ❌ Appel non connecté
+        </div>
+        
+        <div class="call-controls">
+            <button id="callBtn" class="call-btn btn-call" onclick="startCall()">
+                📞
+            </button>
+            <button id="hangupBtn" class="call-btn btn-hangup" onclick="endCall()" disabled>
+                📵
+            </button>
+            <button id="muteBtn" class="call-btn btn-mute" onclick="toggleMute()" disabled>
+                🎤
+            </button>
+            <button id="recordBtn" class="call-btn btn-record" onclick="toggleRecording()" disabled>
+                🔴
+            </button>
+        </div>
+        
+        <div id="conversationLog" class="conversation-log">
+            <p style="text-align: center; color: #666;">
+                La conversation apparaîtra ici...
+            </p>
+        </div>
+        
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        
+        <div id="stats" class="stats">
+            Prêt à démarrer l'appel vocal
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let isMuted = false;
+        let isCallActive = false;
+        
+        // Éléments DOM
+        const statusEl = document.getElementById('callStatus');
+        const conversationEl = document.getElementById('conversationLog');
+        const callBtn = document.getElementById('callBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const statsEl = document.getElementById('stats');
+        const errorEl = document.getElementById('errorMessage');
+        
+        async function startCall() {
+            try {
+                updateStatus('connecting', '🔄 Connexion en cours...');
+                
+                // Demander permission microphone
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Connecter WebSocket
+                ws = new WebSocket(`ws://localhost:8010/ws/voice-call/${userId}`);
+                
+                ws.onopen = function() {
+                    updateStatus('connected', '✅ Appel connecté - Sophie vous écoute');
+                    isCallActive = true;
+                    
+                    callBtn.disabled = true;
+                    hangupBtn.disabled = false;
+                    muteBtn.disabled = false;
+                    recordBtn.disabled = false;
+                    
+                    // Configurer l'enregistrement audio
+                    setupAudioRecording(stream);
+                    
+                    addSystemMessage('Appel connecté ! Sophie va vous saluer...');
+                };
+                
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleCallMessage(data);
+                };
+                
+                ws.onclose = function() {
+                    endCall();
+                };
+                
+                ws.onerror = function(error) {
+                    showError('Erreur de connexion WebSocket');
+                    updateStatus('disconnected', '❌ Erreur de connexion');
+                };
+                
+            } catch (error) {
+                showError('Erreur accès microphone: ' + error.message);
+                updateStatus('disconnected', '❌ Erreur microphone');
+            }
+        }
+        
+        function endCall() {
+            if (ws) {
+                ws.send(JSON.stringify({type: 'end_call'}));
+                ws.close();
+            }
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            updateStatus('disconnected', '❌ Appel terminé');
+            isCallActive = false;
+            
+            callBtn.disabled = false;
+            hangupBtn.disabled = true;
+            muteBtn.disabled = true;
+            recordBtn.disabled = true;
+            
+            addSystemMessage('Appel terminé. Au revoir !');
+        }
+        
+        function setupAudioRecording(stream) {
+            mediaRecorder = new MediaRecorder(stream);
+            
+            mediaRecorder.ondataavailable = function(event) {
+                audioChunks.push(event.data);
+            };
+            
+            mediaRecorder.onstop = function() {
+                if (audioChunks.length > 0) {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    sendAudioToAI(audioBlob);
+                    audioChunks = [];
+                }
+                
+                recordBtn.classList.remove('recording');
+                isRecording = false;
+            };
+        }
+        
+        function toggleRecording() {
+            if (!isCallActive || isMuted) return;
+            
+            if (!isRecording) {
+                // Commencer l'enregistrement
+                audioChunks = [];
+                mediaRecorder.start();
+                recordBtn.classList.add('recording');
+                isRecording = true;
+                updateStatus('listening', '🎤 Je vous écoute...');
+            } else {
+                // Arrêter l'enregistrement
+                mediaRecorder.stop();
+                updateStatus('processing', '⏳ Traitement en cours...');
+            }
+        }
+        
+        async function sendAudioToAI(audioBlob) {
+            try {
+                // Convertir en base64
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                
+                // Envoyer via WebSocket
+                ws.send(JSON.stringify({
+                    type: 'voice_input',
+                    audio: base64Audio
+                }));
+                
+            } catch (error) {
+                showError('Erreur envoi audio: ' + error.message);
+            }
+        }
+        
+        function handleCallMessage(data) {
+            switch(data.type) {
+                case 'call_started':
+                    addAIMessage(data.message);
+                    break;
+                    
+                case 'processing':
+                    updateStatus('processing', data.message);
+                    break;
+                    
+                case 'conversation_turn':
+                    addUserMessage(data.user_said);
+                    addAIMessage(data.ai_response, data.audio);
+                    updateStatus('connected', '✅ Sophie vous écoute');
+                    updateStats(data.processing_time);
+                    break;
+                    
+                case 'ai_speaking':
+                    addAIMessage(data.text, data.audio);
+                    updateStatus('speaking', '🗣️ Sophie parle...');
+                    break;
+                    
+                case 'call_ended':
+                    addSystemMessage(data.message);
+                    endCall();
+                    break;
+                    
+                case 'error':
+                    showError(data.message);
+                    updateStatus('connected', '✅ Sophie vous écoute');
+                    break;
+            }
+        }
+        
+        function addUserMessage(text) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'conversation-turn user-message';
+            messageEl.innerHTML = `<strong>Vous:</strong> ${text}`;
+            conversationEl.appendChild(messageEl);
+            scrollToBottom();
+        }
+        
+        function addAIMessage(text, audioBase64 = null) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'conversation-turn ai-message';
+            messageEl.innerHTML = `<strong>Sophie:</strong> ${text}`;
+            
+            if (audioBase64) {
+                const audioEl = document.createElement('audio');
+                audioEl.controls = true;
+                audioEl.src = `data:audio/mp3;base64,${audioBase64}`;
+                audioEl.autoplay = true; // Lecture automatique
+                
+                const audioContainer = document.createElement('div');
+                audioContainer.className = 'audio-controls';
+                audioContainer.appendChild(audioEl);
+                messageEl.appendChild(audioContainer);
+            }
+            
+            conversationEl.appendChild(messageEl);
+            scrollToBottom();
+        }
+        
+        function addSystemMessage(text) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'conversation-turn';
+            messageEl.style.background = '#fff3cd';
+            messageEl.style.color = '#856404';
+            messageEl.style.textAlign = 'center';
+            messageEl.style.fontStyle = 'italic';
+            messageEl.textContent = text;
+            conversationEl.appendChild(messageEl);
+            scrollToBottom();
+        }
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            muteBtn.classList.toggle('muted', isMuted);
+            muteBtn.textContent = isMuted ? '🔇' : '🎤';
+            
+            if (ws) {
+                ws.send(JSON.stringify({
+                    type: isMuted ? 'mute' : 'unmute'
+                }));
+            }
+        }
+        
+        function updateStatus(status, text) {
+            statusEl.className = `call-status status-${status}`;
+            statusEl.textContent = text;
+        }
+        
+        function updateStats(processingTime) {
+            statsEl.innerHTML = `
+                📊 Dernière réponse: ${processingTime}s | 
+                🎤 Appuyez sur 🔴 pour parler
+            `;
+        }
+        
+        function showError(message) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        function scrollToBottom() {
+            conversationEl.scrollTop = conversationEl.scrollHeight;
+        }
+        
+        // Instructions d'utilisation
+        window.onload = function() {
+            addSystemMessage('Cliquez sur 📞 pour démarrer l\'appel avec Sophie');
+            addSystemMessage('Puis utilisez 🔴 pour parler (appuyez pour commencer, re-appuyez pour envoyer)');
+        };
+    </script>
+</body>
+</html>

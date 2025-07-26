@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Test MeetVoice App Complète</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #667eea;
+            margin: 0;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .test-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .test-card h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        
+        .test-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            transition: transform 0.3s ease;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .test-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 1px solid #e9ecef;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            border-left: 5px solid #28a745;
+            background: #d4edda;
+        }
+        
+        .error {
+            border-left: 5px solid #dc3545;
+            background: #f8d7da;
+        }
+        
+        .loading {
+            color: #667eea;
+            font-style: italic;
+        }
+        
+        .form-group {
+            margin: 10px 0;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        audio {
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Test MeetVoice App Complète</h1>
+            <p>Testez tous les endpoints de votre application</p>
+        </div>
+        
+        <div class="test-grid">
+            <!-- Test TTS -->
+            <div class="test-card">
+                <h3>🎵 Test TTS</h3>
+                <div class="form-group">
+                    <input type="text" id="ttsText" placeholder="Texte à synthétiser" value="Bonjour, je suis Sophie !">
+                </div>
+                <button class="test-btn" onclick="testTTS()">Tester TTS</button>
+                <div id="ttsResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <!-- Test IA -->
+            <div class="test-card">
+                <h3>🤖 Test IA</h3>
+                <div class="form-group">
+                    <input type="text" id="iaPrompt" placeholder="Question pour l'IA" value="Comment améliorer ma confiance en moi ?">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="iaAudio" checked> Inclure audio</label>
+                </div>
+                <button class="test-btn" onclick="testIA()">Tester IA</button>
+                <div id="iaResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <!-- Test Description -->
+            <div class="test-card">
+                <h3>🎯 Test Description</h3>
+                <div class="form-group">
+                    <input type="text" id="descPrenom" placeholder="Prénom" value="Sophie">
+                </div>
+                <div class="form-group">
+                    <textarea id="descPhysique" placeholder="Description physique">Grande, sportive, cheveux châtains, yeux verts</textarea>
+                </div>
+                <div class="form-group">
+                    <textarea id="descGouts" placeholder="Goûts">Yoga, cuisine, voyages, photographie</textarea>
+                </div>
+                <div class="form-group">
+                    <select id="descRecherche">
+                        <option value="amical">Amical</option>
+                        <option value="amoureuse" selected>Amoureuse</option>
+                        <option value="libertin">Libertin</option>
+                    </select>
+                </div>
+                <button class="test-btn" onclick="testDescription()">Tester Description</button>
+                <div id="descResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <!-- Test Questions -->
+            <div class="test-card">
+                <h3>📝 Test Questions</h3>
+                <div class="form-group">
+                    <input type="number" id="questionNum" placeholder="Numéro question (1-30)" value="1" min="1" max="30">
+                </div>
+                <button class="test-btn" onclick="testQuestion()">Tester Question</button>
+                <button class="test-btn" onclick="testQuestionInfo()">Info Questions</button>
+                <div id="questionResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <!-- Test WebSocket -->
+            <div class="test-card">
+                <h3>⚡ Test WebSocket</h3>
+                <div class="form-group">
+                    <input type="text" id="wsMessage" placeholder="Message WebSocket" value="Salut Sophie !">
+                </div>
+                <button class="test-btn" onclick="connectWebSocket()" id="wsConnectBtn">Se connecter</button>
+                <button class="test-btn" onclick="sendWebSocketMessage()" id="wsSendBtn" disabled>Envoyer</button>
+                <button class="test-btn" onclick="disconnectWebSocket()" id="wsDisconnectBtn" disabled>Déconnecter</button>
+                <div id="wsResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <!-- Test Stats -->
+            <div class="test-card">
+                <h3>📊 Test Stats</h3>
+                <button class="test-btn" onclick="testStats()">Voir Statistiques</button>
+                <div id="statsResult" class="result" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8012';
+        let ws = null;
+        
+        // Test TTS
+        async function testTTS() {
+            const text = document.getElementById('ttsText').value;
+            const resultDiv = document.getElementById('ttsResult');
+            
+            showLoading(resultDiv, 'Génération TTS...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/tts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ TTS généré (${result.processing_time.toFixed(2)}s)<br>
+                            Taille: ${result.size} bytes<br>
+                            <audio controls src="${result.audio}"></audio>
+                        </div>
+                    `;
+                } else {
+                    showError(resultDiv, result.detail || 'Erreur TTS');
+                }
+            } catch (error) {
+                showError(resultDiv, error.message);
+            }
+        }
+        
+        // Test IA
+        async function testIA() {
+            const prompt = document.getElementById('iaPrompt').value;
+            const includeAudio = document.getElementById('iaAudio').checked;
+            const resultDiv = document.getElementById('iaResult');
+            
+            showLoading(resultDiv, 'Appel IA...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/ia`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        include_audio: includeAudio,
+                        user_id: 'test_user'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    let html = `
+                        <div class="success">
+                            ✅ Réponse IA (${result.provider})<br>
+                            Temps: ${result.processing_time.toFixed(2)}s<br>
+                            Fallback: ${result.fallback_used ? 'Oui' : 'Non'}<br>
+                            <strong>Réponse:</strong> ${result.response}
+                    `;
+                    
+                    if (result.audio) {
+                        html += `<br><audio controls src="${result.audio}"></audio>`;
+                    }
+                    
+                    html += '</div>';
+                    resultDiv.innerHTML = html;
+                } else {
+                    showError(resultDiv, result.detail || 'Erreur IA');
+                }
+            } catch (error) {
+                showError(resultDiv, error.message);
+            }
+        }
+        
+        // Test Description
+        async function testDescription() {
+            const data = {
+                prenom: document.getElementById('descPrenom').value,
+                physique: document.getElementById('descPhysique').value,
+                gouts: document.getElementById('descGouts').value,
+                recherche: document.getElementById('descRecherche').value,
+                user_id: 'test_user'
+            };
+            
+            const resultDiv = document.getElementById('descResult');
+            showLoading(resultDiv, 'Génération description...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/description`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Description générée<br>
+                            Score: ${result.score_attractivite}/100<br>
+                            <strong>Description:</strong><br>
+                            "${result.description}"<br>
+                            <strong>Conseils:</strong> ${result.conseils_amelioration.join(', ')}
+                        </div>
+                    `;
+                } else {
+                    showError(resultDiv, result.detail || 'Erreur description');
+                }
+            } catch (error) {
+                showError(resultDiv, error.message);
+            }
+        }
+        
+        // Test Questions
+        async function testQuestion() {
+            const num = document.getElementById('questionNum').value;
+            const resultDiv = document.getElementById('questionResult');
+            
+            showLoading(resultDiv, 'Chargement question...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/inscription/question/${num}`);
+                
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Question ${num} chargée<br>
+                            Taille: ${audioBlob.size} bytes<br>
+                            <audio controls src="${audioUrl}"></audio>
+                        </div>
+                    `;
+                } else {
+                    showError(resultDiv, 'Erreur chargement question');
+                }
+            } catch (error) {
+                showError(resultDiv, error.message);
+            }
+        }
+        
+        async function testQuestionInfo() {
+            const resultDiv = document.getElementById('questionResult');
+            
+            try {
+                const response = await fetch(`${API_BASE}/inscription/info`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Info questions<br>
+                            Total: ${result.total_questions}<br>
+                            Format: ${result.format_audio}<br>
+                            Voix: ${result.voix}
+                        </div>
+                    `;
+                } else {
+                    showError(resultDiv, 'Erreur info questions');
+                }
+            } catch (error) {
+                showError(resultDiv, error.message);
+            }
+        }
+        
+        // Test WebSocket
+        function connectWebSocket() {
+            const resultDiv = document.getElementById('wsResult');
+            const userId = 'test_user_' + Date.now();
+            
+            try {
+                ws = new WebSocket(`${API_BASE.replace('https', 'wss')}/ws/chat/${userId}`);
+                
+                ws.onopen = () => {
+                    resultDiv.innerHTML = '<div class="success">✅ WebSocket connecté</div>';
+                    document.getElementById('wsConnectBtn').disabled = true;
+                    document.getElementById('wsSendBtn').disabled = false;
+                    document.getElementById('wsDisconnectBtn').disabled = false;
+                };
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    const currentContent = resultDiv.innerHTML;
+                    resultDiv.innerHTML = currentContent + `<br>📨 ${data.type}: ${data.message || data.content || JSON.stringify(data)}`;
+                };
+                
+                ws.onclose = () => {
+                    resultDiv.innerHTML += '<br>❌ WebSocket fermé';
+                    resetWebSocketButtons();
+                };
+                
+                ws.onerror = (error) => {
+                    showError(resultDiv, 'Erreur WebSocket');
+                    resetWebSocketButtons();
+                };
+                
+            } catch (error) {
+                showError(resultDiv, error.message);
+            }
+        }
+        
+        function sendWebSocketMessage() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = document.getElementById('wsMessage').value;
+                ws.send(JSON.stringify({
+                    prompt: message,
+                    include_audio: true
+                }));
+            }
+        }
+        
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+            resetWebSocketButtons();
+        }
+        
+        function resetWebSocketButtons() {
+            document.getElementById('wsConnectBtn').disabled = false;
+            document.getElementById('wsSendBtn').disabled = true;
+            document.getElementById('wsDisconnectBtn').disabled = true;
+        }
+        
+        // Test Stats
+        async function testStats() {
+            const resultDiv = document.getElementById('statsResult');
+            
+            try {
+                const response = await fetch(`${API_BASE}/stats`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Statistiques<br>
+                            App: ${result.app}<br>
+                            Version: ${result.version}<br>
+                            Connexions WS: ${result.websocket_connections}<br>
+                            Features: ${result.features_actives ? result.features_actives.join(', ') : 'N/A'}
+                        </div>
+                    `;
+                } else {
+                    showError(resultDiv, 'Erreur stats');
+                }
+            } catch (error) {
+                showError(resultDiv, error.message);
+            }
+        }
+        
+        // Fonctions utilitaires
+        function showLoading(element, message) {
+            element.style.display = 'block';
+            element.innerHTML = `<div class="loading">${message}</div>`;
+        }
+        
+        function showError(element, message) {
+            element.style.display = 'block';
+            element.innerHTML = `<div class="error">❌ ${message}</div>`;
+        }
+        
+        // Test de connectivité au chargement
+        window.onload = async function() {
+            try {
+                const response = await fetch(`${API_BASE}/`);
+                if (response.ok) {
+                    console.log('✅ API MeetVoice connectée');
+                } else {
+                    alert('⚠️ API non accessible');
+                }
+            } catch (error) {
+                alert('❌ Impossible de se connecter à l\'API');
+            }
+        };
+    </script>
+</body>
+</html>

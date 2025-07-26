@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeetVoice Chat WebSocket</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .chat-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        .status.connecting { background: #fff3cd; color: #856404; }
+        
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: 20%;
+        }
+        
+        .message.assistant {
+            background: #e9ecef;
+            color: #333;
+            margin-right: 20%;
+        }
+        
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            font-style: italic;
+            text-align: center;
+        }
+        
+        .typing-indicator {
+            background: #e9ecef;
+            color: #666;
+            font-style: italic;
+            margin-right: 20%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        #sendButton {
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        #sendButton:hover { background: #0056b3; }
+        #sendButton:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .audio-player {
+            margin-top: 10px;
+        }
+        
+        .stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="header">
+            <h1>🎤 MeetVoice Chat WebSocket</h1>
+            <div id="connectionStatus" class="status disconnected">
+                ❌ Déconnecté
+            </div>
+        </div>
+        
+        <div class="controls">
+            <label>
+                <input type="checkbox" id="audioEnabled" checked> 
+                🎵 Audio activé
+            </label>
+            <select id="voiceSelect">
+                <option value="Microsoft Server Speech Text to Speech Voice (fr-FR, DeniseNeural)">Denise (FR)</option>
+                <option value="Microsoft Server Speech Text to Speech Voice (fr-FR, HenriNeural)">Henri (FR)</option>
+                <option value="Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)">Aria (EN)</option>
+            </select>
+            <button onclick="connectWebSocket()">🔗 Reconnecter</button>
+        </div>
+        
+        <div id="chatMessages" class="chat-messages"></div>
+        
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Posez votre question à Sophie..." 
+                   onkeypress="handleKeyPress(event)">
+            <button id="sendButton" onclick="sendMessage()">Envoyer</button>
+        </div>
+        
+        <div id="stats" class="stats"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        let currentAudio = null;
+        
+        // Éléments DOM
+        const statusEl = document.getElementById('connectionStatus');
+        const messagesEl = document.getElementById('chatMessages');
+        const inputEl = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendButton');
+        const audioEnabled = document.getElementById('audioEnabled');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const statsEl = document.getElementById('stats');
+        
+        function connectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+            
+            updateStatus('connecting', '🔄 Connexion...');
+            
+            // Remplacez par votre URL
+            ws = new WebSocket(`ws://localhost:8004/ws/chat/${userId}`);
+            
+            ws.onopen = function() {
+                updateStatus('connected', '✅ Connecté en WebSocket');
+                sendBtn.disabled = false;
+                addSystemMessage('Connexion WebSocket établie. Vous pouvez maintenant chatter en temps réel !');
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            ws.onclose = function() {
+                updateStatus('disconnected', '❌ Connexion fermée');
+                sendBtn.disabled = true;
+                addSystemMessage('Connexion WebSocket fermée. Cliquez sur "Reconnecter" pour reprendre.');
+            };
+            
+            ws.onerror = function(error) {
+                updateStatus('disconnected', '❌ Erreur de connexion');
+                addSystemMessage('Erreur WebSocket. Vérifiez que l\'API est démarrée sur le port 8004.');
+            };
+        }
+        
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'processing_start':
+                    addTypingIndicator();
+                    break;
+                    
+                case 'text_chunk':
+                    updateAssistantMessage(data.content, data.full_text, data.is_complete);
+                    break;
+                    
+                case 'audio_generation_start':
+                    addSystemMessage('🎵 Génération de l\'audio...');
+                    break;
+                    
+                case 'audio_complete':
+                    if (audioEnabled.checked && data.audio) {
+                        playAudio(data.audio);
+                    }
+                    break;
+                    
+                case 'conversation_complete':
+                    removeTypingIndicator();
+                    updateStats(data);
+                    addSystemMessage(`✅ Conversation ${data.conversation_id} terminée (${data.total_time}s)`);
+                    break;
+                    
+                case 'error':
+                    removeTypingIndicator();
+                    addSystemMessage(`❌ Erreur: ${data.message}`);
+                    break;
+                    
+                case 'audio_error':
+                    addSystemMessage(`🎵❌ ${data.message}`);
+                    break;
+            }
+        }
+        
+        function sendMessage() {
+            const message = inputEl.value.trim();
+            if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            
+            // Afficher le message utilisateur
+            addUserMessage(message);
+            
+            // Envoyer via WebSocket
+            const data = {
+                prompt: message,
+                system_prompt: "Tu es Sophie, coach de séduction experte et bienveillante. Réponds de manière concise et pratique.",
+                include_audio: audioEnabled.checked,
+                voice: voiceSelect.value,
+                rate: "+0%",
+                pitch: "+0Hz"
+            };
+            
+            ws.send(JSON.stringify(data));
+            
+            // Nettoyer l'input
+            inputEl.value = '';
+            sendBtn.disabled = true;
+        }
+        
+        function addUserMessage(text) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message user';
+            messageEl.textContent = text;
+            messagesEl.appendChild(messageEl);
+            scrollToBottom();
+        }
+        
+        function addSystemMessage(text) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message system';
+            messageEl.textContent = text;
+            messagesEl.appendChild(messageEl);
+            scrollToBottom();
+        }
+        
+        let currentAssistantMessage = null;
+        
+        function addTypingIndicator() {
+            removeTypingIndicator();
+            currentAssistantMessage = document.createElement('div');
+            currentAssistantMessage.className = 'message typing-indicator';
+            currentAssistantMessage.textContent = 'Sophie tape...';
+            messagesEl.appendChild(currentAssistantMessage);
+            scrollToBottom();
+        }
+        
+        function updateAssistantMessage(chunk, fullText, isComplete) {
+            if (!currentAssistantMessage) {
+                currentAssistantMessage = document.createElement('div');
+                currentAssistantMessage.className = 'message assistant';
+                messagesEl.appendChild(currentAssistantMessage);
+            }
+            
+            currentAssistantMessage.className = 'message assistant';
+            currentAssistantMessage.textContent = fullText;
+            
+            if (isComplete) {
+                currentAssistantMessage = null;
+                sendBtn.disabled = false;
+            }
+            
+            scrollToBottom();
+        }
+        
+        function removeTypingIndicator() {
+            if (currentAssistantMessage && currentAssistantMessage.className.includes('typing-indicator')) {
+                currentAssistantMessage.remove();
+                currentAssistantMessage = null;
+            }
+        }
+        
+        function playAudio(audioData) {
+            if (currentAudio) {
+                currentAudio.pause();
+            }
+            
+            currentAudio = new Audio(audioData);
+            currentAudio.play().catch(e => {
+                console.error('Erreur lecture audio:', e);
+                addSystemMessage('❌ Erreur lecture audio');
+            });
+        }
+        
+        function updateStatus(status, text) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text;
+        }
+        
+        function updateStats(data) {
+            statsEl.innerHTML = `
+                📊 Provider: ${data.provider} | 
+                ⏱️ Temps: ${data.total_time}s | 
+                💰 Coût: ${data.cost}€
+            `;
+        }
+        
+        function scrollToBottom() {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        // Connexion automatique au chargement
+        window.onload = function() {
+            connectWebSocket();
+        };
+    </script>
+</body>
+</html>

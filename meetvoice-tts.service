@@ -1,0 +1,17 @@
+[Unit]
+Description=MeetVoice TTS API
+After=network.target
+
+[Service]
+Type=exec
+User=root
+WorkingDirectory=/root/voice
+Environment=PATH=/root/voice/venv/bin
+ExecStart=/root/voice/venv/bin/python main.py
+Restart=always
+RestartSec=3
+StandardOutput=append:/root/voice/api.log
+StandardError=append:/root/voice/api.log
+
+[Install]
+WantedBy=multi-user.target
