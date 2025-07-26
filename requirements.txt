@@ -1,19 +1,34 @@
-# API Voice MeetVoice - TTS Optimisé
-# Version 2.0.0 - Text-to-Speech uniquement
+# MeetVoice App Complète - Toutes fonctionnalités
+# Version 3.0.0 - TTS + IA + Description + Vocal Streaming
 
-# Framework API
+# Framework web
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 
-# Synthèse vocale
+# Base de données
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# Validation des données
+pydantic==2.5.0
+
+# Upload de fichiers
+python-multipart==0.0.20
+
+# Text-to-Speech
 edge-tts==6.1.12
 
-# Utilitaires
-python-multipart==0.0.6
+# Speech-to-Text pour endpoint vocal
+SpeechRecognition==3.14.3
 
-# Supprimé pour optimisation TTS uniquement:
-# speechrecognition==3.10.0  # STT non nécessaire
-# pydub==0.25.1             # Conversion audio non nécessaire
-# aiofiles==23.2.0          # Async files non nécessaire
-# openai-whisper            # STT non nécessaire
-# pyaudio                   # Capture audio non nécessaire
+# IA et APIs
+google-generativeai==0.3.2
+google-ai-generativelanguage==0.4.0
+google-api-python-client==2.108.0
+requests==2.31.0
+
+# Configuration
+python-dotenv==1.0.0
+
+# Utilitaires
+tqdm==4.66.1
