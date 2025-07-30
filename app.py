@@ -7,9 +7,26 @@ API FastAPI ultra-simple pour les questions d'inscription avec synthèse vocale
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import edge_tts
 import asyncio
 import os
+from groq import Groq
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement
+load_dotenv()
+
+# Configuration Groq (ultra-rapide)
+groq_api_key = os.getenv("GROQ_API_KEY")
+if not groq_api_key:
+    raise ValueError("GROQ_API_KEY non trouvée dans le fichier .env")
+groq_client = Groq(api_key=groq_api_key)
+
+# Modèle de données pour la description
+class UserProfile(BaseModel):
+    prenom: str
+    physique: str
 
 # Application FastAPI
 app = FastAPI(title="MeetVoice Questions", version="1.0")
@@ -25,7 +42,7 @@ app.add_middleware(
 
 # Les 30 Questions d'Inscription MeetVoice
 QUESTIONS = [
-    "Bonjour ! Je m'appelle Sophie et je suis ravie de vous accompagner dans votre inscription sur MeetVoice. Commençons par le commencement : quel nom d'utilisateur souhaitez-vous choisir ?",
+    "Bonjour ! Je m'appelle Sophie et je suis ravie de vous accompagner dans votre inscription sur MeetVoice. Commençons par le commencement : quel nom d'utilisateur souhaitez-vous choisir ?.",
     "Parfait ! Maintenant, pouvez-vous me dire votre nom de famille ?",
     "Et votre prénom ? J'aimerais savoir comment vous appeler !",
     "Quelle est votre date de naissance ? Ne vous inquiétez pas, ces informations restent confidentielles.",
@@ -50,6 +67,9 @@ QUESTIONS = [
     "Question style : comment décririez-vous votre façon de vous habiller ?",
     "Pour les sorties, qu'est-ce qui vous fait plaisir ? Restaurants, cinéma, nature ?",
     "Quel est votre niveau d'éducation ? Pas de jugement, juste pour mieux vous connaître !",
+    "Avez-vous des enfants ou souhaitez-vous en avoir ?",
+    "J'aimerais en savoir un peu plus sur vos habitudes de vie. Fumez-vous ?",
+    "D'accord, consommez-vous de l'alcool pendant les sorties ? ",
     "Maintenant, la question que j'adore : parlez-moi de vous ! Qu'est-ce qui vous rend unique et spécial ?",
     "Pour vous proposer des rencontres près de chez vous, acceptez-vous de partager votre localisation ?",
     "Parfait ! Maintenant, ajoutons une belle photo de vous pour compléter votre profil !",
@@ -80,12 +100,12 @@ async def root():
     return {
         "app": "MeetVoice Questions",
         "version": "1.0",
-        "description": "API simple pour les 30 questions d'inscription",
+        "description": "API simple pour les 33 questions d'inscription",
         "total_questions": len(QUESTIONS),
         "endpoints": {
             "info": "GET /info",
-            "question_audio": "GET /question/{numero}",
-            "question_text": "GET /question/{numero}/text"
+            "question_audio": "GET /inscription/question/{numero}",
+            "description": "POST /description"
         }
     }
 
@@ -100,38 +120,88 @@ async def get_info():
         "preview": [f"Q{i+1}: {q[:50]}..." for i, q in enumerate(QUESTIONS[:5])]
     }
 
-@app.get("/question/{numero}")
-async def get_question_audio(numero: int):
-    """Récupère l'audio d'une question"""
+@app.get("/inscription/question/{numero}")
+async def get_inscription_question_audio(numero: int):
+    """Récupère l'audio d'une question d'inscription"""
     if not (1 <= numero <= len(QUESTIONS)):
         raise HTTPException(status_code=404, detail=f"Question {numero} non trouvée. Disponibles: 1-{len(QUESTIONS)}")
-    
+
     question_text = QUESTIONS[numero - 1]
     audio_data = await generate_audio(question_text)
-    
+
     if not audio_data:
         raise HTTPException(status_code=500, detail="Erreur génération audio")
-    
+
     async def audio_stream():
         yield audio_data
-    
+
     return StreamingResponse(
         audio_stream(),
         media_type="audio/mpeg",
         headers={"Content-Disposition": f"inline; filename=question_{numero}.mp3"}
     )
 
-@app.get("/question/{numero}/text")
-async def get_question_text(numero: int):
-    """Récupère le texte d'une question"""
-    if not (1 <= numero <= len(QUESTIONS)):
-        raise HTTPException(status_code=404, detail=f"Question {numero} non trouvée. Disponibles: 1-{len(QUESTIONS)}")
-    
-    return {
-        "numero": numero,
-        "question": QUESTIONS[numero - 1],
-        "total_questions": len(QUESTIONS)
-    }
+@app.post("/description")
+async def generate_description(profile: UserProfile):
+    """Génère une description attractive pour un site de rencontre"""
+    try:
+        print(f"🔍 Données reçues: prenom={profile.prenom}, physique={profile.physique[:50]}...")
+
+        # Prompt pour Gemini
+        prompt = f"""
+Tu es un expert en rédaction de profils pour sites de rencontre.
+Crée une description attractive, authentique et vendeuse pour cette personne :
+
+Prénom: {profile.prenom}
+Physique: {profile.physique}
+
+Consignes STRICTES:
+- EXACTEMENT 1000 caractères (ni plus, ni moins)
+- Ton séduisant, confiant et magnétique
+- Mets en valeur le charme et l'attractivité physique
+- Évoque des passions, des ambitions, du mystère
+- Utilise des détails concrets et intrigants
+- Première personne avec le prénom
+- Sois original, évite les phrases banales
+- Crée de l'envie et de la curiosité
+- Mentionne des qualités uniques et des centres d'intérêt captivants
+
+IMPORTANT: Compte précisément les caractères pour atteindre EXACTEMENT 1000.
+
+Retourne uniquement la description, sans commentaires.
+"""
+
+        print("🚀 Appel à Groq (ultra-rapide)...")
+
+        # Appel à Groq avec Llama 3.1 8B
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",  # Modèle rapide et disponible
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=1000,
+            top_p=0.8
+        )
+
+        print("✅ Réponse Groq reçue")
+
+        description = response.choices[0].message.content.strip()
+
+        return {
+            "success": True,
+            "description": description,
+            "prompt_used": prompt,
+            "prenom": profile.prenom
+        }
+
+    except Exception as e:
+        print(f"❌ Erreur: {str(e)}")
+        print(f"❌ Type d'erreur: {type(e).__name__}")
+        raise HTTPException(status_code=500, detail=f"Erreur génération description: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
